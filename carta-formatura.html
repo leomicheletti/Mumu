@@ -178,27 +178,79 @@
     to { transform: translate(-50%, -50%) scale(2.6); opacity: 0; }
   }
 
-  /* ---------- Galeria ---------- */
-  .gallery-section { background: #f2ece0; }
-  .gallery { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  @media (min-width: 640px) { .gallery { grid-template-columns: repeat(4, 1fr); } }
-  .gallery figure {
-    position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden;
-    background: #ddd3bf; cursor: zoom-in;
-    box-shadow: 0 4px 12px rgba(0,0,0,.1);
-    transform: rotate(var(--r, 0deg)); transition: transform .3s;
+  /* ---------- Fotos: varal + pilha ---------- */
+  .gallery-section { background: #f2ece0; overflow: hidden; }
+  .photo-hint { text-align: center; color: var(--muted); margin: -12px 0 20px; font-size: .95rem; }
+
+  .varal {
+    position: relative; overflow-x: auto; overflow-y: hidden;
+    margin: 0 -20px 8px; padding: 0 20px;
+    scrollbar-width: none; -webkit-overflow-scrolling: touch;
   }
-  .gallery figure:hover { transform: rotate(0) scale(1.03); }
-  .gallery img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .gallery figcaption {
-    position: absolute; left: 0; right: 0; bottom: 0;
-    padding: 18px 8px 6px; font-size: .8rem; color: #fff;
-    background: linear-gradient(transparent, rgba(0,0,0,.65));
+  .varal::-webkit-scrollbar { display: none; }
+  .varal-track {
+    position: relative; display: flex; gap: 18px; align-items: flex-start;
+    min-width: 100%; width: max-content; min-height: 190px; padding: 22px 12px 18px;
   }
-  .gallery .missing {
-    width: 100%; height: 100%; display: grid; place-items: center;
-    color: var(--muted); font-size: .8rem; text-align: center; padding: 8px;
+  .varal-track::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 18px; height: 2px;
+    background: #8a6d45; border-radius: 2px; box-shadow: 0 2px 2px rgba(0,0,0,.12);
   }
+  .varal-empty {
+    position: absolute; left: 50%; top: 70px; transform: translateX(-50%);
+    width: 80%; text-align: center; color: var(--muted); font-style: italic; font-size: .9rem;
+  }
+  .hanging {
+    position: relative; flex: none; background: #fff; padding: 6px 6px 18px;
+    box-shadow: 0 6px 12px rgba(0,0,0,.18); cursor: zoom-in;
+    transform-origin: 50% -10px;
+    animation: hang-in .6s cubic-bezier(.3,1.6,.5,1) both, sway 3.2s ease-in-out infinite alternate;
+    animation-delay: 0s, var(--d, 0s);
+  }
+  .hanging img { height: 130px; width: auto; display: block; }
+  .hanging::before {
+    content: ""; position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+    width: 10px; height: 22px; border-radius: 3px;
+    background: linear-gradient(90deg, #c9a46a, #e6c896, #c9a46a);
+    box-shadow: 0 1px 2px rgba(0,0,0,.25);
+  }
+  @keyframes hang-in { from { transform: translateY(-60px) rotate(-12deg); opacity: 0; } }
+  @keyframes sway { from { transform: rotate(-2.5deg); } to { transform: rotate(2.5deg); } }
+
+  .pile {
+    position: relative; height: min(440px, 62svh); margin: 10px auto 0; max-width: 420px;
+  }
+  .card {
+    position: absolute; left: 50%; top: 50%;
+    background: #fff; padding: 10px 10px 34px;
+    box-shadow: 0 10px 24px rgba(0,0,0,.2);
+    transform: translate(-50%, -50%) rotate(var(--r, 0deg));
+    transition: transform .35s ease, opacity .35s ease;
+    user-select: none; -webkit-user-select: none; touch-action: pan-y;
+  }
+  .card img {
+    display: block; max-width: min(78vw, 340px); max-height: calc(min(440px, 62svh) - 80px);
+    width: auto; height: auto; pointer-events: none;
+  }
+  .card .card-cap {
+    position: absolute; left: 0; right: 0; bottom: 8px; text-align: center;
+    font-style: italic; color: var(--muted); font-size: .85rem;
+  }
+  .card.top { cursor: grab; }
+  .card.dragging { transition: none; cursor: grabbing; }
+  .pile-done {
+    position: absolute; inset: 0; display: none; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; gap: 12px;
+  }
+  .pile-done.show { display: flex; }
+  .pile-done p { font-size: 1.3rem; color: var(--navy); }
+  .pile-actions { text-align: center; margin-top: 18px; }
+  .btn-ghost {
+    background: none; border: 2px solid var(--navy); color: var(--navy);
+    padding: 10px 20px; border-radius: 999px; font: inherit; cursor: pointer;
+  }
+  .btn-ghost:active { transform: scale(.97); }
+  .pile-count { display: block; margin-top: 8px; font-size: .8rem; color: var(--muted); }
 
   /* ---------- Lightbox ---------- */
   #lightbox {
@@ -284,7 +336,22 @@
   <section class="gallery-section" id="fotos">
     <div class="container">
       <h2 class="reveal" id="gallery-title"></h2>
-      <div class="gallery" id="gallery"></div>
+      <p class="photo-hint reveal" id="photo-hint"></p>
+      <div class="varal" id="varal">
+        <div class="varal-track" id="varal-track">
+          <span class="varal-empty" id="varal-empty"></span>
+        </div>
+      </div>
+      <div class="pile" id="pile">
+        <div class="pile-done" id="pile-done">
+          <p id="pile-done-text"></p>
+          <button class="btn-ghost" id="pile-reset">↺ Empilhar de novo</button>
+        </div>
+      </div>
+      <div class="pile-actions">
+        <button class="btn-ghost" id="pile-next">Pendurar no varal ↗</button>
+        <span class="pile-count" id="pile-count"></span>
+      </div>
     </div>
   </section>
 
@@ -351,6 +418,9 @@ const CONFIG = {
   assinatura: "Com carinho, Léo",
 
   tituloGaleria: "Momentos",
+  dicaFotos: "Arraste a foto de cima para o lado e ela vai para o varal. Toque para ampliar.",
+  varalVazio: "As fotos vão sendo penduradas aqui…",
+  pilhaTerminou: "Varal completo! 📸",
   fotos: [
     { arquivo: "fotos/foto1.jpg", legenda: "" },
     { arquivo: "fotos/foto2.jpg", legenda: "" },
@@ -450,32 +520,118 @@ const CONFIG = {
   showNews(false);
   $("next-news").onclick = () => showNews(true);
 
-  // Galeria
-  const gallery = $("gallery");
-  const fotosOk = [];
-  CONFIG.fotos.forEach((f, i) => {
-    const fig = document.createElement("figure");
-    fig.className = "reveal";
-    fig.style.setProperty("--r", `${(i % 2 ? 1 : -1) * (1 + (i % 3))}deg`);
+  // Fotos: pilha na mesa + varal
+  $("photo-hint").textContent = CONFIG.dicaFotos;
+  $("varal-empty").textContent = CONFIG.varalVazio;
+  $("pile-done-text").textContent = CONFIG.pilhaTerminou;
+  const fotosOk = CONFIG.fotos;
+  const pileEl = $("pile");
+  const track = $("varal-track");
+  const varal = $("varal");
+  let pile = [];
+
+  function updateCount() {
+    const hung = track.querySelectorAll(".hanging").length;
+    $("pile-count").textContent = `${hung} de ${fotosOk.length} no varal`;
+    $("pile-next").style.visibility = pile.length ? "visible" : "hidden";
+    $("pile-done").classList.toggle("show", pile.length === 0);
+    $("varal-empty").style.display = hung || pile.length < fotosOk.length ? "none" : "";
+  }
+
+  function markTop() {
+    pileEl.querySelectorAll(".card").forEach((c) => c.classList.remove("top"));
+    if (pile.length) pile[0].el.classList.add("top");
+  }
+
+  function buildPile() {
+    pileEl.querySelectorAll(".card").forEach((c) => c.remove());
+    track.querySelectorAll(".hanging").forEach((h) => h.remove());
+    pile = fotosOk.map((f, i) => {
+      const el = document.createElement("div");
+      el.className = "card";
+      el.style.setProperty("--r", `${(Math.random() * 14 - 7).toFixed(1)}deg`);
+      el.style.zIndex = fotosOk.length - i;
+      const img = document.createElement("img");
+      img.src = f.arquivo;
+      img.alt = f.legenda || `Foto ${i + 1}`;
+      img.draggable = false;
+      const cap = document.createElement("span");
+      cap.className = "card-cap";
+      cap.textContent = f.legenda || `${i + 1} / ${fotosOk.length}`;
+      el.append(img, cap);
+      const item = { el, i };
+      img.onerror = () => {
+        el.remove();
+        pile = pile.filter((p) => p !== item);
+        markTop();
+        updateCount();
+      };
+      attachDrag(item);
+      pileEl.appendChild(el);
+      return item;
+    });
+    markTop();
+    updateCount();
+  }
+
+  function hang(i) {
+    const f = fotosOk[i];
+    const h = document.createElement("figure");
+    h.className = "hanging";
+    h.style.setProperty("--d", `${(Math.random() * -3).toFixed(2)}s`);
     const img = document.createElement("img");
     img.src = f.arquivo;
     img.alt = f.legenda || `Foto ${i + 1}`;
-    img.loading = "lazy";
-    img.onerror = () => {
-      fig.innerHTML = `<div class="missing">Foto ${i + 1}<br>não encontrada</div>`;
-      fig.style.cursor = "default";
-      fig.onclick = null;
+    h.appendChild(img);
+    h.onclick = () => openLightbox(i);
+    track.appendChild(h);
+    updateCount();
+    requestAnimationFrame(() => varal.scrollTo({ left: varal.scrollWidth, behavior: "smooth" }));
+  }
+
+  function throwTop(dx, dy) {
+    if (!pile.length) return;
+    const item = pile.shift();
+    const dir = dx === 0 ? 1 : Math.sign(dx);
+    item.el.classList.remove("dragging", "top");
+    item.el.style.transform =
+      `translate(calc(-50% + ${dir * 120}vw), calc(-50% + ${dy - 220}px)) rotate(${dir * 35}deg)`;
+    item.el.style.opacity = "0";
+    markTop();
+    updateCount();
+    setTimeout(() => { item.el.remove(); hang(item.i); }, 320);
+  }
+
+  function attachDrag(item) {
+    const el = item.el;
+    let sx = 0, sy = 0, dx = 0, dy = 0, active = false;
+    el.addEventListener("pointerdown", (e) => {
+      if (pile[0] !== item) return;
+      active = true; sx = e.clientX; sy = e.clientY; dx = dy = 0;
+      el.setPointerCapture(e.pointerId);
+      el.classList.add("dragging");
+    });
+    el.addEventListener("pointermove", (e) => {
+      if (!active) return;
+      dx = e.clientX - sx; dy = e.clientY - sy;
+      el.style.transform =
+        `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) rotate(calc(var(--r) + ${dx / 12}deg))`;
+    });
+    const end = (cancelled) => {
+      if (!active) return;
+      active = false;
+      el.classList.remove("dragging");
+      if (!cancelled && Math.abs(dx) > 80) return throwTop(dx, dy);
+      el.style.transform = "";
+      if (!cancelled && Math.abs(dx) < 6 && Math.abs(dy) < 6) openLightbox(item.i);
     };
-    fig.appendChild(img);
-    if (f.legenda) {
-      const cap = document.createElement("figcaption");
-      cap.textContent = f.legenda;
-      fig.appendChild(cap);
-    }
-    fig.onclick = () => openLightbox(i);
-    gallery.appendChild(fig);
-    fotosOk.push(f);
-  });
+    el.addEventListener("pointerup", () => end(false));
+    el.addEventListener("pointercancel", () => end(true));
+  }
+
+  $("pile-next").onclick = () => throwTop(1, 0);
+  $("pile-reset").onclick = buildPile;
+  buildPile();
 
   // Lightbox
   let current = 0;
