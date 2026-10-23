@@ -17,6 +17,7 @@
     --radius: 14px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  button, [role="button"] { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
   html { scroll-behavior: smooth; }
   body {
     font-family: Georgia, "Times New Roman", serif;
@@ -166,10 +167,11 @@
   .launch-hint.counting { font-size: 1.6rem; font-weight: bold; color: #c0392b; }
   .flying-rocket {
     position: fixed; z-index: 80; font-size: 3rem; line-height: 1; pointer-events: none;
-    transform: rotate(-45deg);
+    transform: rotate(-45deg); will-change: transform;
   }
   .smoke {
     position: fixed; z-index: 79; pointer-events: none; border-radius: 50%;
+    will-change: transform, opacity;
     background: radial-gradient(circle, rgba(255,200,90,.95), rgba(255,120,40,.6) 40%, rgba(200,200,200,.35) 70%, transparent);
     animation: puff 1.1s ease-out forwards;
   }
@@ -555,6 +557,8 @@ const CONFIG = {
       img.src = f.arquivo;
       img.alt = f.legenda || `Foto ${i + 1}`;
       img.draggable = false;
+      img.loading = "lazy";
+      img.decoding = "async";
       const cap = document.createElement("span");
       cap.className = "card-cap";
       cap.textContent = f.legenda || `${i + 1} / ${fotosOk.length}`;
@@ -676,34 +680,55 @@ const CONFIG = {
   const ctx = canvas.getContext("2d");
   let pieces = [];
   let animating = false;
-  function resize() { canvas.width = innerWidth; canvas.height = innerHeight; }
-  addEventListener("resize", resize);
-  resize();
+  let last = 0;
+  canvas.style.display = "none";
+  function resize() {
+    if (canvas.width !== innerWidth) canvas.width = innerWidth;
+    if (canvas.height !== innerHeight) canvas.height = innerHeight;
+  }
   function confetti() {
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    resize();
     const colors = ["#d4a64a", "#f1dca7", "#ffffff", "#c0392b", "#4a78d4"];
-    for (let i = 0; i < 160; i++) {
+    // Começa logo acima da tela para aparecer na hora
+    for (let i = 0; i < 120; i++) {
       pieces.push({
-        x: Math.random() * canvas.width, y: -20 - Math.random() * canvas.height * 0.5,
+        x: Math.random() * canvas.width, y: -10 - Math.random() * 140,
         w: 6 + Math.random() * 6, h: 8 + Math.random() * 8,
-        vy: 2 + Math.random() * 3, vx: -1.5 + Math.random() * 3,
+        vy: 2.5 + Math.random() * 3, vx: -1.5 + Math.random() * 3,
         rot: Math.random() * Math.PI, vr: -0.1 + Math.random() * 0.2,
         color: colors[(Math.random() * colors.length) | 0]
       });
     }
-    if (!animating) { animating = true; requestAnimationFrame(draw); }
+    if (!animating) {
+      animating = true;
+      canvas.style.display = "block";
+      last = performance.now();
+      requestAnimationFrame(draw);
+    }
   }
-  function draw() {
+  // Velocidades em px por quadro de 60 fps, escaladas pelo tempo real
+  // para não ficar em câmera lenta quando o celular perde quadros
+  function draw(now) {
+    const k = Math.min((now - last) / 16.67, 4);
+    last = now;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    pieces.forEach((p) => {
-      p.x += p.vx; p.y += p.vy; p.rot += p.vr;
-      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
-      ctx.fillStyle = p.color; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-      ctx.restore();
-    });
+    for (const p of pieces) {
+      p.x += p.vx * k; p.y += p.vy * k; p.rot += p.vr * k;
+      const c = Math.cos(p.rot), s = Math.sin(p.rot);
+      ctx.setTransform(c, s, -s, c, p.x, p.y);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+    }
     pieces = pieces.filter((p) => p.y < canvas.height + 30);
     if (pieces.length) requestAnimationFrame(draw);
-    else { animating = false; ctx.clearRect(0, 0, canvas.width, canvas.height); }
+    else {
+      animating = false;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.style.display = "none";
+    }
   }
   $("celebrate").onclick = confetti;
 
@@ -724,7 +749,7 @@ const CONFIG = {
       hint.textContent = CONFIG.mensagemDecolagem;
       if (reduced) { setTimeout(reset, 2500); return; }
       launch();
-    }, 700);
+    }, 550);
 
     function launch() {
       const r = rocket.getBoundingClientRect();
@@ -732,27 +757,34 @@ const CONFIG = {
       const fly = document.createElement("div");
       fly.className = "flying-rocket";
       fly.textContent = "🚀";
+      fly.style.left = r.left + "px";
+      fly.style.top = r.top + "px";
       document.body.appendChild(fly);
-      let x = r.left, y = r.top, vy = 0.5, t = 0;
       if (navigator.vibrate) navigator.vibrate(200);
-      function step() {
-        t++;
-        vy *= 1.07;
-        y -= vy;
-        x += Math.sin(t / 6) * 1.2;
-        fly.style.left = x + "px";
-        fly.style.top = y + "px";
-        if (t % 2 === 0) {
+      // Posição calculada pelo tempo decorrido, com aceleração (ease-in),
+      // e movida só com transform para não recalcular o layout a cada quadro
+      const dist = r.top + 160;
+      const duration = 1100;
+      const start = performance.now();
+      let lastSmoke = 0;
+      function step(now) {
+        const t = now - start;
+        const p = Math.min(t / duration, 1);
+        const dy = -dist * p * p;
+        const dx = Math.sin(t / 90) * 5;
+        fly.style.transform = `translate3d(${dx}px, ${dy}px, 0) rotate(-45deg)`;
+        if (t - lastSmoke > 45 && p < 0.85) {
+          lastSmoke = t;
           const s = document.createElement("div");
           const size = 18 + Math.random() * 14;
           s.className = "smoke";
           s.style.width = s.style.height = size + "px";
-          s.style.left = x + 8 + Math.random() * 10 + "px";
-          s.style.top = y + r.height + "px";
+          s.style.left = r.left + dx + 18 + Math.random() * 10 + "px";
+          s.style.top = r.top + dy + r.height + "px";
           document.body.appendChild(s);
           setTimeout(() => s.remove(), 1100);
         }
-        if (y > -120) requestAnimationFrame(step);
+        if (p < 1) requestAnimationFrame(step);
         else { fly.remove(); confetti(); setTimeout(reset, 2500); }
       }
       requestAnimationFrame(step);
@@ -768,7 +800,8 @@ const CONFIG = {
   const env = $("envelope");
   function openEnvelope() {
     env.classList.add("open");
-    setTimeout(() => { $("envelope-screen").classList.add("hidden"); confetti(); }, 700);
+    confetti();
+    setTimeout(() => $("envelope-screen").classList.add("hidden"), 600);
   }
   env.addEventListener("click", openEnvelope);
   env.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openEnvelope(); } });
