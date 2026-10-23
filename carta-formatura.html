@@ -317,16 +317,28 @@
   }
   #verdao {
     position: fixed; inset: 0; z-index: 90; display: none;
-    flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    flex-direction: column; align-items: center; justify-content: safe center; gap: 10px;
+    overflow-y: auto;
     background: radial-gradient(circle at 50% 35%, #0a8a4a, #006437 55%, #003d22);
     color: #fff; text-align: center; padding: 24px; cursor: pointer;
   }
   #verdao.show { display: flex; animation: verdao-in .45s cubic-bezier(.3,1.5,.5,1); }
-  #verdao h2 { color: #fff; font-size: clamp(2rem, 10vw, 3.6rem); letter-spacing: 1px; }
-  #verdao h2::after { background: #fff; }
-  #verdao p { max-width: 420px; font-size: 1.15rem; }
-  #verdao small { opacity: .7; margin-top: 10px; }
-  .verdao-emoji { font-size: 4.5rem; animation: float 2.5s ease-in-out infinite; }
+  #verdao h2 { color: #fff; font-size: clamp(1.8rem, 9vw, 3.2rem); letter-spacing: 1px; margin-bottom: 4px; }
+  #verdao h2::after { background: #fff; margin-top: 8px; }
+  #verdao p { max-width: 420px; font-size: 1.05rem; }
+  #verdao small { opacity: .7; }
+  .verdao-foto {
+    background: #fff; padding: 8px 8px 30px; position: relative;
+    box-shadow: 0 14px 30px rgba(0,0,0,.35);
+    transform: rotate(-4deg);
+    animation: foto-in .7s cubic-bezier(.3,1.5,.5,1) .15s both;
+  }
+  .verdao-foto img { display: block; height: min(40svh, 400px); width: auto; max-width: 78vw; object-fit: contain; }
+  .verdao-foto figcaption {
+    position: absolute; left: 0; right: 0; bottom: 6px;
+    color: #333; font-style: italic; font-size: .85rem;
+  }
+  @keyframes foto-in { from { transform: rotate(-25deg) scale(.3); opacity: 0; } }
   @keyframes verdao-in { from { transform: scale(.6); opacity: 0; } }
 
   @media (prefers-reduced-motion: reduce) {
@@ -432,8 +444,11 @@
 </div>
 
 <div id="verdao" role="dialog" aria-modal="true">
-  <div class="verdao-emoji" aria-hidden="true">🐷💚</div>
   <h2 id="verdao-title"></h2>
+  <figure class="verdao-foto">
+    <img id="verdao-img" alt="Mumu com o uniforme do Palmeiras">
+    <figcaption id="verdao-legenda"></figcaption>
+  </figure>
   <p id="verdao-text"></p>
   <small id="verdao-close"></small>
 </div>
@@ -516,6 +531,8 @@ const CONFIG = {
   botaoTricolor: "🔴⚪⚫ Toque aqui, são-paulino",
   fugasTricolor: ["Quase!", "Tá difícil, hein?", "Tricolor não pega nem botão 😂", "Vai, mais uma…", "Agora vai… 😏"],
   verdaoTitulo: "AQUI É PALMEIRAS!",
+  fotoPalmeiras: "fotos/palmeiras.jpg",
+  legendaFotoPalmeiras: "Flagrado no elevador 👀",
   verdaoTexto: "Brincadeira, Mumu… ou não 😏 Te amo mesmo assim, são-paulino.",
   verdaoFechar: "toque para voltar"
 };
@@ -849,6 +866,9 @@ const CONFIG = {
   }
   // Novo texto primeiro, depois sorteia uma posição em que o botão caiba inteiro
   function flee() {
+    // Já começa a baixar a foto do Palmeiras para ela aparecer na hora
+    const vImg = $("verdao-img");
+    if (!vImg.getAttribute("src")) vImg.src = CONFIG.fotoPalmeiras;
     tri.textContent = CONFIG.fugasTricolor[fugas];
     fugas++;
     const zone = tri.parentElement;
@@ -883,6 +903,7 @@ const CONFIG = {
     resetTricolor();
   });
   $("verdao-title").textContent = CONFIG.verdaoTitulo;
+  $("verdao-legenda").textContent = CONFIG.legendaFotoPalmeiras;
   $("verdao-text").textContent = CONFIG.verdaoTexto;
   $("verdao-close").textContent = CONFIG.verdaoFechar;
   resetTricolor();
