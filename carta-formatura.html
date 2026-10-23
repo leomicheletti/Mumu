@@ -292,7 +292,42 @@
   .reveal.visible { opacity: 1; transform: none; }
 
   /* ---------- Confete ---------- */
-  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 70; }
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 95; }
+
+  /* ---------- Pegadinhas do Palmeiras ---------- */
+  .surprise {
+    width: min(70vw, 270px); height: calc(min(440px, 62svh) - 90px);
+    background: linear-gradient(160deg, #0a8a4a, #006437 60%, #004d2a);
+    color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; text-align: center; padding: 20px; font-size: 1.25rem; font-weight: bold;
+  }
+  .surprise-emoji { font-size: 3.4rem; }
+  .mini-verde {
+    width: 98px; height: 130px; display: grid; place-items: center; font-size: 1.8rem;
+    background: linear-gradient(160deg, #0a8a4a, #006437);
+  }
+  .tricolor-zone { position: relative; height: 170px; margin-top: 28px; }
+  .btn-tricolor {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    background: #fff; color: #111; border: 3px solid #e2001a; border-radius: 999px;
+    padding: 10px 18px; font: inherit; font-weight: bold; font-size: .95rem;
+    white-space: nowrap; max-width: 100%;
+    cursor: pointer; box-shadow: 0 4px 0 #111;
+    transition: left .22s ease, top .22s ease;
+  }
+  #verdao {
+    position: fixed; inset: 0; z-index: 90; display: none;
+    flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    background: radial-gradient(circle at 50% 35%, #0a8a4a, #006437 55%, #003d22);
+    color: #fff; text-align: center; padding: 24px; cursor: pointer;
+  }
+  #verdao.show { display: flex; animation: verdao-in .45s cubic-bezier(.3,1.5,.5,1); }
+  #verdao h2 { color: #fff; font-size: clamp(2rem, 10vw, 3.6rem); letter-spacing: 1px; }
+  #verdao h2::after { background: #fff; }
+  #verdao p { max-width: 420px; font-size: 1.15rem; }
+  #verdao small { opacity: .7; margin-top: 10px; }
+  .verdao-emoji { font-size: 4.5rem; animation: float 2.5s ease-in-out infinite; }
+  @keyframes verdao-in { from { transform: scale(.6); opacity: 0; } }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -380,6 +415,9 @@
       <h2 class="reveal" id="final-title"></h2>
       <p class="reveal" id="final-text"></p>
       <button class="btn" id="celebrate">🎉 Comemorar</button>
+      <div class="tricolor-zone">
+        <button class="btn-tricolor" id="tricolor"></button>
+      </div>
       <footer id="footer-text"></footer>
     </div>
   </section>
@@ -391,6 +429,13 @@
   <img id="lb-img" alt="">
   <p id="lb-caption"></p>
   <button id="lb-next" aria-label="Próxima foto">›</button>
+</div>
+
+<div id="verdao" role="dialog" aria-modal="true">
+  <div class="verdao-emoji" aria-hidden="true">🐷💚</div>
+  <h2 id="verdao-title"></h2>
+  <p id="verdao-text"></p>
+  <small id="verdao-close"></small>
 </div>
 
 <canvas id="confetti"></canvas>
@@ -456,7 +501,23 @@ const CONFIG = {
 
   tituloFinal: "Parabéns, formando!",
   textoFinal: "Que essa conquista seja só a primeira de muitas.",
-  rodape: "Feito com carinho pelo Léo"
+  rodape: "Feito com carinho pelo Léo",
+
+  // ---- Pegadinhas do Palmeiras ----
+  mancheteInfiltrada: {
+    titulo: "Mumu, aos 30, finalmente admite: “o Palmeiras é maior”",
+    sub: "Primo Léo, emocionado, diz que sempre soube que esse dia chegaria."
+  },
+  fotoSurpresa: {
+    emoji: "🐷💚",
+    texto: "Parabéns também pelos títulos do Palmeiras!",
+    legenda: "15 / 14 ?!"
+  },
+  botaoTricolor: "🔴⚪⚫ Toque aqui, são-paulino",
+  fugasTricolor: ["Quase!", "Tá difícil, hein?", "Tricolor não pega nem botão 😂", "Vai, mais uma…", "Agora vai… 😏"],
+  verdaoTitulo: "AQUI É PALMEIRAS!",
+  verdaoTexto: "Brincadeira, Mumu… ou não 😏 Te amo mesmo assim, são-paulino.",
+  verdaoFechar: "toque para voltar"
 };
 /* ===================================================================== */
 
@@ -489,12 +550,14 @@ const CONFIG = {
   });
 
   // Manchetes do futuro: ordem embaralhada, sem repetir até ver todas
-  const news = CONFIG.manchetes;
+  // (a manchete infiltrada fica sempre por último)
+  const news = CONFIG.manchetes.concat([CONFIG.mancheteInfiltrada]);
   let order = [];
   let pos = 0;
   let seen = 0;
   function shuffle() {
-    order = news.map((_, i) => i).sort(() => Math.random() - 0.5);
+    order = CONFIG.manchetes.map((_, i) => i).sort(() => Math.random() - 0.5);
+    order.push(news.length - 1);
     pos = 0;
   }
   function showNews(animate) {
@@ -532,8 +595,9 @@ const CONFIG = {
   const varal = $("varal");
   let pile = [];
 
+  // A contagem só considera as fotos, para a polaroid surpresa pegar de surpresa
   function updateCount() {
-    const hung = track.querySelectorAll(".hanging").length;
+    const hung = track.querySelectorAll(".hanging:not(.verde)").length;
     $("pile-count").textContent = `${hung} de ${fotosOk.length} no varal`;
     $("pile-next").style.visibility = pile.length ? "visible" : "hidden";
     $("pile-done").classList.toggle("show", pile.length === 0);
@@ -574,20 +638,59 @@ const CONFIG = {
       pileEl.appendChild(el);
       return item;
     });
+
+    // Polaroid surpresa do Palmeiras, no fundo da pilha
+    const s = CONFIG.fotoSurpresa;
+    const el = document.createElement("div");
+    el.className = "card";
+    el.style.setProperty("--r", `${(Math.random() * 10 - 5).toFixed(1)}deg`);
+    el.style.zIndex = 0;
+    const box = document.createElement("div");
+    box.className = "surprise";
+    const em = document.createElement("span");
+    em.className = "surprise-emoji";
+    em.textContent = s.emoji;
+    const tx = document.createElement("span");
+    tx.textContent = s.texto;
+    box.append(em, tx);
+    const cap = document.createElement("span");
+    cap.className = "card-cap";
+    cap.textContent = s.legenda;
+    el.append(box, cap);
+    const item = { el, i: -1 };
+    attachDrag(item);
+    pileEl.appendChild(el);
+    pile.push(item);
+
     markTop();
     updateCount();
   }
 
+  const VERDE = ["#006437", "#ffffff", "#0a8a4a", "#e8f5ec"];
+  function tapItem(i) {
+    if (i === -1) confetti(VERDE);
+    else openLightbox(i);
+  }
+
   function hang(i) {
-    const f = fotosOk[i];
     const h = document.createElement("figure");
     h.className = "hanging";
     h.style.setProperty("--d", `${(Math.random() * -3).toFixed(2)}s`);
-    const img = document.createElement("img");
-    img.src = f.arquivo;
-    img.alt = f.legenda || `Foto ${i + 1}`;
-    h.appendChild(img);
-    h.onclick = () => openLightbox(i);
+    if (i === -1) {
+      h.classList.add("verde");
+      const mini = document.createElement("div");
+      mini.className = "mini-verde";
+      mini.textContent = CONFIG.fotoSurpresa.emoji;
+      h.appendChild(mini);
+      confetti(VERDE);
+    } else {
+      const f = fotosOk[i];
+      const img = document.createElement("img");
+      img.src = f.arquivo;
+      img.alt = f.legenda || `Foto ${i + 1}`;
+      h.appendChild(img);
+    }
+    h.onclick = () => tapItem(i);
     track.appendChild(h);
     updateCount();
     requestAnimationFrame(() => varal.scrollTo({ left: varal.scrollWidth, behavior: "smooth" }));
@@ -627,7 +730,7 @@ const CONFIG = {
       el.classList.remove("dragging");
       if (!cancelled && Math.abs(dx) > 80) return throwTop(dx, dy);
       el.style.transform = "";
-      if (!cancelled && Math.abs(dx) < 6 && Math.abs(dy) < 6) openLightbox(item.i);
+      if (!cancelled && Math.abs(dx) < 6 && Math.abs(dy) < 6) tapItem(item.i);
     };
     el.addEventListener("pointerup", () => end(false));
     el.addEventListener("pointercancel", () => end(true));
@@ -686,10 +789,10 @@ const CONFIG = {
     if (canvas.width !== innerWidth) canvas.width = innerWidth;
     if (canvas.height !== innerHeight) canvas.height = innerHeight;
   }
-  function confetti() {
+  function confetti(colors) {
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     resize();
-    const colors = ["#d4a64a", "#f1dca7", "#ffffff", "#c0392b", "#4a78d4"];
+    if (!Array.isArray(colors)) colors = ["#d4a64a", "#f1dca7", "#ffffff", "#c0392b", "#4a78d4"];
     // Começa logo acima da tela para aparecer na hora
     for (let i = 0; i < 120; i++) {
       pieces.push({
@@ -730,7 +833,59 @@ const CONFIG = {
       canvas.style.display = "none";
     }
   }
-  $("celebrate").onclick = confetti;
+  $("celebrate").onclick = () => confetti();
+
+  // Botão do tricolor: foge algumas vezes e, quando é pego, a página vira Palmeiras
+  const tri = $("tricolor");
+  const verdao = $("verdao");
+  const MAX_FUGAS = CONFIG.fugasTricolor.length;
+  let fugas = 0;
+  let ignoreClick = false;
+  function resetTricolor() {
+    fugas = 0;
+    tri.textContent = CONFIG.botaoTricolor;
+    tri.style.left = "50%";
+    tri.style.top = "50%";
+  }
+  // Novo texto primeiro, depois sorteia uma posição em que o botão caiba inteiro
+  function flee() {
+    tri.textContent = CONFIG.fugasTricolor[fugas];
+    fugas++;
+    const zone = tri.parentElement;
+    const zw = zone.clientWidth, zh = zone.clientHeight;
+    const halfW = Math.min(tri.offsetWidth / 2, zw / 2);
+    const halfH = tri.offsetHeight / 2;
+    const curX = parseFloat(tri.style.left) / 100 * zw || zw / 2;
+    const curY = parseFloat(tri.style.top) / 100 * zh || zh / 2;
+    let x, y, tries = 0;
+    do {
+      x = halfW + Math.random() * (zw - 2 * halfW);
+      y = halfH + Math.random() * (zh - 2 * halfH);
+    } while (Math.hypot(x - curX, y - curY) < 70 && ++tries < 20);
+    tri.style.left = (x / zw * 100) + "%";
+    tri.style.top = (y / zh * 100) + "%";
+  }
+  tri.addEventListener("pointerenter", (e) => {
+    if (e.pointerType === "mouse" && fugas < MAX_FUGAS) flee();
+  });
+  tri.addEventListener("pointerdown", () => {
+    ignoreClick = fugas < MAX_FUGAS;
+    if (ignoreClick) flee();
+  });
+  tri.addEventListener("click", () => {
+    if (ignoreClick || fugas < MAX_FUGAS) return;
+    verdao.classList.add("show");
+    confetti(VERDE);
+    if (navigator.vibrate) navigator.vibrate([100, 60, 100]);
+  });
+  verdao.addEventListener("click", () => {
+    verdao.classList.remove("show");
+    resetTricolor();
+  });
+  $("verdao-title").textContent = CONFIG.verdaoTitulo;
+  $("verdao-text").textContent = CONFIG.verdaoTexto;
+  $("verdao-close").textContent = CONFIG.verdaoFechar;
+  resetTricolor();
 
   // Foguete: contagem 3-2-1 e decolagem até sair da tela
   const rocket = $("rocket");
